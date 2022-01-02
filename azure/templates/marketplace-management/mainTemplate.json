@@ -19,7 +19,9 @@
         "R81 - Bring Your Own License",
         "R81 - Pay As You Go (MGMT25)",
         "R81.10 - Bring Your Own License",
-        "R81.10 - Pay As You Go (MGMT25)"
+        "R81.10 - Pay As You Go (MGMT25)",
+        "R81.20 - Bring Your Own License",
+        "R81.20 - Pay As You Go (MGMT25)"
       ],
       "defaultValue": "R81 - Bring Your Own License",
       "metadata": {
@@ -135,6 +137,19 @@
         "custom"
       ]
     },
+    "adminShell": {
+      "type": "string",
+      "defaultValue": "/etc/cli.sh",
+      "allowedValues": [
+        "/etc/cli.sh",
+        "/bin/bash",
+        "/bin/csh",
+        "/bin/tcsh"
+      ],
+      "metadata": {
+        "Description": "The default shell for the admin user"
+      }
+    },
     "bootstrapScript": {
       "type": "string",
       "metadata": {
@@ -216,7 +231,7 @@
   },
   "variables": {
     "templateName": "management",
-    "templateVersion": "20211129",
+    "templateVersion": "20211230",
     "location": "[parameters('location')]",
     "offers": {
       "R80.30 - Bring Your Own License": "BYOL",
@@ -226,7 +241,9 @@
       "R81 - Bring Your Own License": "BYOL",
       "R81 - Pay As You Go (MGMT25)": "MGMT25",
       "R81.10 - Bring Your Own License": "BYOL",
-      "R81.10 - Pay As You Go (MGMT25)": "MGMT25"
+      "R81.10 - Pay As You Go (MGMT25)": "MGMT25",
+      "R81.20 - Bring Your Own License": "BYOL",
+      "R81.20 - Pay As You Go (MGMT25)": "MGMT25"
     },
     "offer": "[variables('offers')[parameters('cloudGuardVersion')]]",
     "osVersions": {
@@ -237,7 +254,9 @@
       "R81 - Bring Your Own License": "R81",
       "R81 - Pay As You Go (MGMT25)": "R81",
       "R81.10 - Bring Your Own License": "R8110",
-      "R81.10 - Pay As You Go (MGMT25)": "R8110"
+      "R81.10 - Pay As You Go (MGMT25)": "R8110",
+      "R81.20 - Bring Your Own License": "R8120",
+      "R81.20 - Pay As You Go (MGMT25)": "R8120"
     },
     "osVersion": "[variables('osVersions')[parameters('cloudGuardVersion')]]",
     "adminUsername": "notused",
@@ -246,7 +265,8 @@
     "storageAccountType": "Standard_LRS",
     "diskSize100GB": 100,
     "diskSizeGB": "[add(parameters('additionalDiskSizeGB'), variables('diskSize100GB'))]",
-    "customData": "[concat('#!/usr/bin/python3 /etc/cloud_config.py\n', '\n', 'installationType=\"', parameters('installationType'), '\"', '\n', 'allowUploadDownload=\"', variables('allowUploadDownload'), '\"', '\n', 'osVersion=\"', variables('osVersion'), '\"', '\n', 'templateName=\"', variables('templateName'), '\"', '\n', 'isBlink=\"', variables('isBlink'), '\"', '\n', 'templateVersion=\"', variables('templateVersion'), '\"', '\n', 'bootstrapScript64=\"', variables('bootstrapScript64'), '\"', '\n', 'location=\"', variables('location'), '\"', '\n', 'managementGUIClientNetwork=\"', variables('managementGUIClientNetwork'), '\"', '\n', 'enableApi=\"', parameters('enableApi'), '\"', '\n')]",
+    "customData": "[concat('#!/usr/bin/python3 /etc/cloud_config.py\n', '\n', 'installationType=\"', parameters('installationType'), '\"', '\n', 'allowUploadDownload=\"', variables('allowUploadDownload'), '\"', '\n', 'osVersion=\"', variables('osVersion'), '\"', '\n', 'templateName=\"', variables('templateName'), '\"', '\n', 'isBlink=\"', variables('isBlink'), '\"', '\n', 'templateVersion=\"', variables('templateVersion'), '\"', '\n', 'bootstrapScript64=\"', variables('bootstrapScript64'), '\"', '\n', 'location=\"', variables('location'), '\"', '\n', 'managementGUIClientNetwork=\"', variables('managementGUIClientNetwork'), '\"', '\n', 'enableApi=\"', parameters('enableApi'), '\"', '\n', 'adminShell=\"', parameters('adminShell'), '\"', '\n')]",
+    "customData64": "[base64(variables('customData'))]",
     "imageOffer": "[concat('check-point-cg-', toLower(variables('osVersion')))]",
     "imagePublisher": "checkpoint",
     "imageReferenceBYOL": {
@@ -590,6 +610,7 @@
       "plan": "[if(equals(parameters('sourceImageVhdUri'),'noCustomUri'), variables('plan'), json('null'))]",
       "identity": "[variables('identity')]",
       "properties": {
+        "UserData": "[variables('customData64')]",
         "diagnosticsProfile": {
           "bootDiagnostics": {
             "enabled": "true",
@@ -613,7 +634,7 @@
           "adminPassword": "[parameters('adminPassword')]",
           "adminUsername": "[variables('adminUsername')]",
           "computerName": "[toLower(parameters('vmName'))]",
-          "customData": "[base64(variables('customData'))]",
+          "customData": "[variables('customData64')]",
           "linuxConfiguration": "[variables('linuxConfiguration')]"
         },
         "storageProfile": {

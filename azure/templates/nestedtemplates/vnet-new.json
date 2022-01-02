@@ -146,6 +146,10 @@
     "vnetId": {
       "value": "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
       "type": "string"
+    },
+    "vnetAddressPrefix": {
+      "value": "[parameters('virtualNetworkAddressPrefix')]",
+      "type": "string"
     }
   }
 }

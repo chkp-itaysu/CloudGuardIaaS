@@ -25,6 +25,10 @@
     "vnetId": {
       "value": "[variables('vnetId')]",
       "type": "string"
+    },
+    "vnetAddressPrefix": {
+      "value": "[reference(variables('vnetId'),'2018-11-01').addressSpace.addressPrefixes[0]]",
+      "type": "string"
     }
   }
 }

@@ -46,15 +46,55 @@
       },
       "defaultValue": "10.0.2.0/24"
     },
+    "EAGWSubnetName": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the external application gateway subnet"
+      },
+      "defaultValue": "external-application-gateway-subnet"
+    },
+    "EAGWSubnetPrefix": {
+      "type": "string",
+      "metadata": {
+        "description": "The address prefix of the external application gateway subnet"
+      },
+      "defaultValue": "10.0.3.0/24"
+    },
+    "IAGWSubnetName": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the internal application gateway subnet"
+      },
+      "defaultValue": "internal-application-gateway-subnet"
+    },
+    "IAGWSubnetPrefix": {
+      "type": "string",
+      "metadata": {
+        "description": "The address prefix of the internal application gateway subnet"
+      },
+      "defaultValue": "10.0.4.0/24"
+    },
     "vmName": {
       "type": "string"
     },
     "deployNsg": {
       "type": "bool",
       "defaultValue": "true"
+    },
+    "deployAGW": {
+      "type": "bool",
+      "defaultValue": "false"
+    },
+    "AGWDeploymentMode": {
+      "type": "string",
+      "defaultValue": "StandardApplicationGateway"
 	}
   },
   "variables": {
+ 
+    "deployAGW": "[parameters('deployAGW')]",
+    "EAGWDeployment": "[and(variables('deployAGW'), or(equals(parameters('AGWDeploymentMode'), 'StandardApplicationGateway'), equals(parameters('AGWDeploymentMode'), 'EApplicationGatewayOnly')))]",
+    "IAGWDeployment": "[and(variables('deployAGW'), or(equals(parameters('AGWDeploymentMode'), 'StandardApplicationGateway'), equals(parameters('AGWDeploymentMode'), 'IApplicationGatewayOnly')))]",
     "copy": [
       {
         "name": "toInternalRoutes",
@@ -77,11 +117,61 @@
         }
       }
     ],
-    "routesArray":"[concat(variables('localSubnetRoute'), variables('toInternalRoutes'))]",
+    "EAGWSubnetRoute": [
+      {
+        "name": "To-external-application-gateway",
+        "properties": {
+          "addressPrefix": "[parameters('EAGWSubnetPrefix')]",
+          "nextHopType": "VnetLocal"
+        }
+      }
+    ],
+    "frontedRoutesArray": "[concat(variables('localSubnetRoute'), variables('toInternalRoutes'))]",
+    "routesArray": "[if(variables('EAGWDeployment'), concat(variables('frontedRoutesArray'), variables('EAGWSubnetRoute')), variables('frontedRoutesArray'))]",
     "nsgName": "[concat(parameters('vmName'), '-nsg')]",
     "nsgProperties": {
       "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+    },
+    "subnet1RouteTableRef": "[resourceId('Microsoft.Network/routeTables', parameters('subnet1Name'))]",
+    "subnet2RouteTableRef": "[resourceId('Microsoft.Network/routeTables', parameters('subnet2Name'))]",
+    "EAGWSubnet": [
+      {
+        "name": "[parameters('EAGWSubnetName')]",
+        "properties": {
+          "addressPrefix": "[parameters('EAGWSubnetPrefix')]"
+        }
+      }
+    ],
+    "IAGWSubnet": [
+      {
+        "name": "[parameters('IAGWSubnetName')]",
+        "properties": {
+          "addressPrefix": "[parameters('IAGWSubnetPrefix')]"
+        }
+      }
+    ],
+    "basicSubnetsList": [
+      {
+        "name": "[parameters('subnet1Name')]",
+        "properties": {
+          "addressPrefix": "[parameters('subnet1Prefix')]",
+          "routeTable": {
+            "id": "[variables('subnet1RouteTableRef')]"
+          }
+        }
+      },
+      {
+        "name": "[parameters('subnet2Name')]",
+        "properties": {
+          "addressPrefix": "[parameters('subnet2Prefix')]",
+          "routeTable": {
+            "id": "[variables('subnet2RouteTableRef')]"
+          }
     }
+      }
+    ],
+    "vnetAGWSubnetsList": "[if(variables('EAGWDeployment'), concat(variables('basicSubnetsList'), variables('EAGWSubnet')), variables('basicSubnetsList'))]",
+    "vnetSubnetsList": "[if(variables('IAGWDeployment'), concat(variables('vnetAGWSubnetsList'), variables('IAGWSubnet')), variables('vnetAGWSubnetsList'))]"
   },
   "resources": [
     {
@@ -116,33 +206,14 @@
       "location": "[parameters('location')]",
       "name": "[parameters('virtualNetworkName')]",
       "dependsOn": [
-        "[resourceId('Microsoft.Network/routeTables', parameters('subnet1Name'))]",
-        "[resourceId('Microsoft.Network/routeTables', parameters('subnet2Name'))]"
+        "[variables('subnet1RouteTableRef')]",
+        "[variables('subnet2RouteTableRef')]"
       ],
       "properties": {
         "addressSpace": {
           "addressPrefixes": "[parameters('virtualNetworkAddressPrefixes')]"
         },
-        "subnets": [
-          {
-            "name": "[parameters('subnet1Name')]",
-            "properties": {
-              "addressPrefix": "[parameters('subnet1Prefix')]",
-              "routeTable": {
-                "id": "[resourceId('Microsoft.Network/routeTables', parameters('subnet1Name'))]"
-              }
-            }
-          },
-          {
-            "name": "[parameters('subnet2Name')]",
-            "properties": {
-              "addressPrefix": "[parameters('subnet2Prefix')]",
-              "routeTable": {
-                "id": "[resourceId('Microsoft.Network/routeTables', parameters('subnet2Name'))]"
-              }
-            }
-          }
-        ]
+        "subnets": "[variables('vnetSubnetsList')]"
       }
     },
     {

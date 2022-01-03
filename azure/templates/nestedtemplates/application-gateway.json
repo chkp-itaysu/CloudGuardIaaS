@@ -1,0 +1,295 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "upgrading": {
+      "type": "bool"
+    },
+    "virtualNetworkRGName": {
+      "type": "string"
+    },
+    "virtualNetworkName": {
+      "type": "string"
+    },
+    "EAGWSubnetName": {
+      "type": "string"
+    },
+    "IAGWSubnetName": {
+      "type": "string"
+    },
+    "applicationGatewayName": {
+      "type": "string"
+    },
+    "applicationGatewaySize": {
+      "type": "string"
+    },
+    "applicationGatewayInstanceCount": {
+      "type": "int"
+    },
+    "frontendPort": {
+      "type": "int"
+    },
+    "backendPort": {
+      "type": "int"
+    },
+    "cookieBasedAffinity": {
+      "type": "string"
+    },
+    "location": {
+      "type": "string"
+    },
+    "publicIPAddressName": {
+      "type": "string"
+    },
+    "deploymentMode": {
+      "type": "string"
+    },
+    "targetEAGWResourceId": {
+      "type": "string"
+    },
+    "targetEAGWBackendPoolName": {
+      "type": "string"
+    },
+    "targetIAGWResourceId": {
+      "type": "string"
+    },
+    "targetIAGWBackendPoolName": {
+      "type": "string"
+    }
+  },
+  "variables": {
+    "EAGWSubnetRef": "[resourceId(parameters('virtualNetworkRGName'), 'Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworkName'), parameters('EAGWSubnetName'))]",
+    "IAGWSubnetRef": "[resourceId(parameters('virtualNetworkRGName'), 'Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworkName'), parameters('IAGWSubnetName'))]",
+    "publicIPAddressId": "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIPAddressName'))]",
+    "EApplicationGatewayName": "[concat(parameters('applicationGatewayName'), '-external')]",
+    "IApplicationGatewayName": "[concat(parameters('applicationGatewayName'), '-internal')]",
+    "deployEAGW": "[or(equals(parameters('deploymentMode'), 'EApplicationGatewayOnly'), equals(parameters('deploymentMode'), 'StandardApplicationGateway'))]",
+    "deployIAGW": "[equals(parameters('deploymentMode'), 'StandardApplicationGateway')]",
+    "appFEName": "appGatewayFrontendIP",
+    "appEBackendPoolName": "[if(not(parameters('upgrading')), 'appGatewayBackendPool', parameters('targetEAGWBackendPoolName'))]",
+    "appIBackendPoolName": "[if(not(parameters('upgrading')), 'appGatewayBackendPool', parameters('targetIAGWBackendPoolName'))]",
+    "eAGWBEAddressPoolProperties": [
+      {
+        "id": "[resourceId('Microsoft.Network/applicationGateways/backendAddressPools', variables('EApplicationGatewayName'), variables('appEBackendPoolName'))]"
+      }
+    ],
+    "iAGWBEAddressPoolProperties": [
+      {
+        "id": "[resourceId('Microsoft.Network/applicationGateways/backendAddressPools', variables('IApplicationGatewayName'), variables('appIBackendPoolName'))]"
+      }
+    ],
+    "eAGWID": "[if(parameters('upgrading'), parameters('targetEAGWResourceId'), resourceId('Microsoft.Network/applicationGateways', variables('EApplicationGatewayName')))]",
+    "iAGWID": "[if(parameters('upgrading'), parameters('targetIAGWResourceId'), resourceId('Microsoft.Network/applicationGateways', variables('IApplicationGatewayName')))]"
+  },
+  "resources": [
+    {
+      "condition": "[and(variables('deployEAGW'), not(parameters('upgrading')))]",
+      "apiVersion": "2020-05-01",
+      "type": "Microsoft.Network/publicIPAddresses",
+      "name": "[parameters('publicIPAddressName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "publicIPAllocationMethod": "Dynamic"
+      }
+    },
+    {
+      "condition": "[and(variables('deployEAGW'), not(parameters('upgrading')))]",
+      "apiVersion": "2020-05-01",
+      "name": "[variables('EApplicationGatewayName')]",
+      "type": "Microsoft.Network/applicationGateways",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[variables('publicIPAddressId')]"
+      ],
+      "properties": {
+        "sku": {
+          "name": "[parameters('applicationGatewaySize')]",
+          "tier": "Standard",
+          "capacity": "[parameters('applicationGatewayInstanceCount')]"
+        },
+        "gatewayIPConfigurations": [
+          {
+            "name": "appGatewayIpConfig",
+            "properties": {
+              "subnet": {
+                "id": "[variables('EAGWSubnetRef')]"
+              }
+            }
+          }
+        ],
+        "frontendIPConfigurations": [
+          {
+            "name": "[variables('appFEName')]",
+            "properties": {
+              "PublicIPAddress": {
+                "id": "[variables('publicIPAddressId')]"
+              }
+            }
+          }
+        ],
+        "frontendPorts": [
+          {
+            "name": "appGatewayFrontendPort",
+            "properties": {
+              "Port": "[parameters('frontendPort')]"
+            }
+          }
+        ],
+        "backendAddressPools": [
+          {
+            "name": "[variables('appEBackendPoolName')]",
+            "properties": {}
+          }
+        ],
+        "backendHttpSettingsCollection": [
+          {
+            "name": "appGatewayBackendHttpSettings",
+            "properties": {
+              "Port": "[parameters('backendPort')]",
+              "Protocol": "Http",
+              "CookieBasedAffinity": "[parameters('cookieBasedAffinity')]"
+            }
+          }
+        ],
+        "httpListeners": [
+          {
+            "name": "appGatewayHttpListener",
+            "properties": {
+              "FrontendIpConfiguration": {
+                "id": "[resourceId('Microsoft.Network/applicationGateways/frontendIPConfigurations', variables('EApplicationGatewayName'), variables('appFEName'))]"
+              },
+              "FrontendPort": {
+                "id": "[resourceId('Microsoft.Network/applicationGateways/frontendPorts', variables('EApplicationGatewayName'), 'appGatewayFrontendPort')]"
+              },
+              "Protocol": "Http"
+            }
+          }
+        ],
+        "requestRoutingRules": [
+          {
+            "Name": "rule1",
+            "properties": {
+              "RuleType": "Basic",
+              "httpListener": {
+                "id": "[resourceId('Microsoft.Network/applicationGateways/httpListeners', variables('EApplicationGatewayName'), 'appGatewayHttpListener')]"
+              },
+              "backendAddressPool": {
+                "id": "[resourceId('Microsoft.Network/applicationGateways/backendAddressPools', variables('EApplicationGatewayName'), variables('appEBackendPoolName'))]"
+              },
+              "backendHttpSettings": {
+                "id": "[resourceId('Microsoft.Network/applicationGateways/backendHttpSettingsCollection', variables('EApplicationGatewayName'), 'appGatewayBackendHttpSettings')]"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "condition": "[and(variables('deployIAGW'), not(parameters('upgrading')))]",
+      "apiVersion": "2020-05-01",
+      "name": "[variables('IApplicationGatewayName')]",
+      "type": "Microsoft.Network/applicationGateways",
+      "location": "[parameters('location')]",
+      "properties": {
+        "sku": {
+          "name": "[parameters('applicationGatewaySize')]",
+          "tier": "Standard",
+          "capacity": "[parameters('applicationGatewayInstanceCount')]"
+        },
+        "gatewayIPConfigurations": [
+          {
+            "name": "appGatewayIpConfig",
+            "properties": {
+              "subnet": {
+                "id": "[variables('IAGWSubnetRef')]"
+              }
+            }
+          }
+        ],
+        "frontendIPConfigurations": [
+          {
+            "name": "[variables('appFEName')]",
+            "properties": {
+              "subnet": {
+                "id": "[variables('IAGWSubnetRef')]"
+              }
+            }
+          }
+        ],
+        "frontendPorts": [
+          {
+            "name": "appGatewayFrontendPort",
+            "properties": {
+              "Port": "[parameters('frontendPort')]"
+            }
+          }
+        ],
+        "backendAddressPools": [
+          {
+            "name": "[variables('appIBackendPoolName')]",
+            "properties": {}
+          }
+        ],
+        "backendHttpSettingsCollection": [
+          {
+            "name": "appGatewayBackendHttpSettings",
+            "properties": {
+              "Port": "[parameters('backendPort')]",
+              "Protocol": "Http",
+              "CookieBasedAffinity": "[parameters('cookieBasedAffinity')]"
+            }
+          }
+        ],
+        "httpListeners": [
+          {
+            "name": "appGatewayHttpListener",
+            "properties": {
+              "FrontendIpConfiguration": {
+                "id": "[resourceId('Microsoft.Network/applicationGateways/frontendIPConfigurations', variables('IApplicationGatewayName'), variables('appFEName'))]"
+              },
+              "FrontendPort": {
+                "id": "[resourceId('Microsoft.Network/applicationGateways/frontendPorts', variables('IApplicationGatewayName'), 'appGatewayFrontendPort')]"
+              },
+              "Protocol": "Http"
+            }
+          }
+        ],
+        "requestRoutingRules": [
+          {
+            "Name": "rule1",
+            "properties": {
+              "RuleType": "Basic",
+              "httpListener": {
+                "id": "[resourceId('Microsoft.Network/applicationGateways/httpListeners', variables('IApplicationGatewayName'), 'appGatewayHttpListener')]"
+              },
+              "backendAddressPool": {
+                "id": "[resourceId('Microsoft.Network/applicationGateways/backendAddressPools', variables('IApplicationGatewayName'), variables('appIBackendPoolName'))]"
+              },
+              "backendHttpSettings": {
+                "id": "[resourceId('Microsoft.Network/applicationGateways/backendHttpSettingsCollection', variables('IApplicationGatewayName'), 'appGatewayBackendHttpSettings')]"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "outputs": {
+    "eAGWId": {
+      "value": "[if(variables('deployEAGW'), variables('eAGWID'), '')]",
+      "type": "string"
+    },
+    "iAGWId": {
+      "value": "[if(variables('deployIAGW'), variables('iAGWID'), '')]",
+      "type": "string"
+    },
+    "iAGWBEAddressPoolProperties": {
+      "value": "[variables('iAGWBEAddressPoolProperties')]",
+      "type": "array"
+    },
+    "eAGWBEAddressPoolProperties": {
+      "value": "[variables('eAGWBEAddressPoolProperties')]",
+      "type": "array"
+    }
+  }
+}

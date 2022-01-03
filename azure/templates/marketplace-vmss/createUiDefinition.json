@@ -167,6 +167,25 @@
           {
             "name": "deploymentMode",
             "type": "Microsoft.Common.DropDown",
+            "label": "Deployment architecture",
+            "defaultValue": "Load Balancers",
+            "toolTip": "Define the type of architecture to deploy: Load balancers or Application gateways.",
+            "constraints": {
+              "allowedValues": [
+                {
+                  "label": "Load Balancers",
+                  "value": "LB"
+                },
+                {
+                  "label": "Application Gateways",
+                  "value": "AGW"
+                }
+              ]
+            }
+          },
+          {
+            "name": "LBDeploymentMode",
+            "type": "Microsoft.Common.DropDown",
             "label": "Load balancers deployment",
             "defaultValue": "Standard (External & Internal)",
             "toolTip": "Defines which load balancers will be deployed. Note: For outbound inspection it is mandatory to deploy an external load balancer and/or instance level public IP addresses.",
@@ -185,7 +204,28 @@
                   "value": "ILBOnly"
                 }
               ]
+            },
+            "visible": "[equals(steps('autoprovision').deploymentMode, 'LB')]"
+          },
+          {
+            "name": "AGWDeploymentMode",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Application gateways deployment",
+            "defaultValue": "Standard (External & Internal)",
+            "toolTip": "Define which applicaion gateways will be deployed.",
+            "constraints": {
+              "allowedValues": [
+                {
+                  "label": "Standard (External & Internal)",
+                  "value": "StandardApplicationGateway"
+                },
+                {
+                  "label": "External only (Deploying with public IP)",
+                  "value": "EApplicationGatewayOnly"
             }
+              ]
+            },
+            "visible": "[equals(steps('autoprovision').deploymentMode, 'AGW')]"
           },
           {
             "name": "appLoadDistribution",
@@ -193,7 +233,7 @@
             "label": "External Load Balancer session persistence",
             "defaultValue": "None (5-tuple)",
             "toolTip": "The load balancing distribution method for the External Load Balancer.",
-            "visible": "[not(equals(steps('autoprovision').deploymentMode, 'ILBOnly'))]",
+            "visible": "[and(equals(steps('autoprovision').deploymentMode, 'LB'), not(equals(steps('autoprovision').LBDeploymentMode, 'ILBOnly')))]",
             "constraints": {
               "allowedValues": [
                 {
@@ -217,7 +257,7 @@
             "label": "Internal Load Balancer session persistence",
             "defaultValue": "None (5-tuple)",
             "toolTip": "The load balancing distribution method for the Internal Load Balancer.",
-            "visible": "[not(equals(steps('autoprovision').deploymentMode, 'ELBOnly'))]",
+            "visible": "[and(equals(steps('autoprovision').deploymentMode, 'LB'), not(equals(steps('autoprovision').LBDeploymentMode, 'ELBOnly')))]",
             "constraints": {
               "allowedValues": [
                 {
@@ -253,7 +293,7 @@
                 }
               ]
             },
-            "visible": true
+            "visible": "[equals(steps('autoprovision').deploymentMode, 'LB')]"
           },
           {
             "name": "instanceLevelPublicIP",
@@ -370,18 +410,9 @@
             "visible": "[equals(steps('autoprovision').createNewIPPrefix, 'no')]"
           },
           {
-            "name": "externalCommunicationInfoBox",
-            "type": "Microsoft.Common.InfoBox",
-            "visible": "[and(equals(steps('autoprovision').instanceLevelPublicIP, 'no'), equals(steps('autoprovision').deploymentMode, 'ILBOnly'))]",
-            "options": {
-              "icon": "Warning",
-              "text": "For outbound inspection it is mandatory to deploy an external load balancer and/or instance level public IP addresses."
-            }
-          },
-          {
             "name": "lbsTargetRGName",
             "type": "Microsoft.Common.TextBox",
-            "visible": "[equals(steps('autoprovision').upgrading, 'yes')]",
+            "visible": "[and(equals(steps('autoprovision').upgrading, 'yes'), equals(steps('autoprovision').deploymentMode, 'LB'))]",
             "label": "Target load balancers resource group name",
             "defaultValue": "",
             "toolTip": "The name of the Target Load Balancers Resource Group.",
@@ -394,7 +425,7 @@
           {
             "name": "elbResourceId",
             "type": "Microsoft.Common.TextBox",
-            "visible": "[and(equals(steps('autoprovision').upgrading, 'yes'), not(equals(steps('autoprovision').deploymentMode, 'ILBOnly')))]",
+            "visible": "[and(equals(steps('autoprovision').upgrading, 'yes'), not(equals(steps('autoprovision').LBDeploymentMode, 'ILBOnly')), equals(steps('autoprovision').deploymentMode, 'LB'))]",
             "label": "Target external load balancer resource ID",
             "defaultValue": "",
             "toolTip": "The Resource ID of the Target External Load Balancer.",
@@ -407,7 +438,7 @@
           {
             "name": "elbInfoBox",
             "type": "Microsoft.Common.InfoBox",
-            "visible": "[and(equals(steps('autoprovision').upgrading, 'yes'), not(equals(steps('autoprovision').deploymentMode, 'ILBOnly')))]",
+            "visible": "[and(equals(steps('autoprovision').upgrading, 'yes'), not(equals(steps('autoprovision').LBDeploymentMode, 'ILBOnly')), equals(steps('autoprovision').deploymentMode, 'LB'))]",
             "options": {
               "icon": "Info",
               "text": "Make sure you have created a new backend address pool for the target external load balancer."
@@ -416,7 +447,7 @@
           {
             "name": "elbBEAddressPoolName",
             "type": "Microsoft.Common.TextBox",
-            "visible": "[and(equals(steps('autoprovision').upgrading, 'yes'), not(equals(steps('autoprovision').deploymentMode, 'ILBOnly')))]",
+            "visible": "[and(equals(steps('autoprovision').upgrading, 'yes'), not(equals(steps('autoprovision').LBDeploymentMode, 'ILBOnly')), equals(steps('autoprovision').deploymentMode, 'LB'))]",
             "label": "External load balancer's new backend pool name",
             "toolTip": "The name of the new Target External Load Balancer's Backend Pool.",
             "constraints": {
@@ -428,7 +459,7 @@
           {
             "name": "ilbResourceId",
             "type": "Microsoft.Common.TextBox",
-            "visible": "[and(equals(steps('autoprovision').upgrading, 'yes'), not(equals(steps('autoprovision').deploymentMode, 'ELBOnly')))]",
+            "visible": "[and(equals(steps('autoprovision').upgrading, 'yes'), not(equals(steps('autoprovision').LBDeploymentMode, 'ELBOnly')), equals(steps('autoprovision').deploymentMode, 'LB'))]",
             "label": "Target internal load balancer resource ID",
             "defaultValue": "",
             "toolTip": "The Resource ID of the Target Internal Load Balancer.",
@@ -441,7 +472,7 @@
           {
             "name": "ilbInfoBox",
             "type": "Microsoft.Common.InfoBox",
-            "visible": "[and(equals(steps('autoprovision').upgrading, 'yes'), not(equals(steps('autoprovision').deploymentMode, 'ELBOnly')))]",
+            "visible": "[and(equals(steps('autoprovision').upgrading, 'yes'), not(equals(steps('autoprovision').LBDeploymentMode, 'ELBOnly')), equals(steps('autoprovision').deploymentMode, 'LB'))]",
             "options": {
               "icon": "Info",
               "text": "Make sure you have created a new backend address pool for the target internal load balancer."
@@ -450,9 +481,90 @@
           {
             "name": "ilbBEAddressPoolName",
             "type": "Microsoft.Common.TextBox",
-            "visible": "[and(equals(steps('autoprovision').upgrading, 'yes'), not(equals(steps('autoprovision').deploymentMode, 'ELBOnly')))]",
+            "visible": "[and(equals(steps('autoprovision').upgrading, 'yes'), not(equals(steps('autoprovision').LBDeploymentMode, 'ELBOnly')), equals(steps('autoprovision').deploymentMode, 'LB'))]",
             "label": "Internal load balancer's new backend pool name",
             "toolTip": "The name of the new target internal load balancer's backend pool.",
+            "constraints": {
+              "required": true,
+              "regex": "^[a-z0-9A-Z_\\-\\.\\/\\(\\)]",
+              "validationMessage": "Only alphanumeric characters, periods, underscores, hyphens, slash, and parenthesis are allowed"
+            }
+          },
+          {
+            "name": "AGWsTargetRGName",
+            "type": "Microsoft.Common.TextBox",
+            "visible": "[and(equals(steps('autoprovision').upgrading, 'yes'), equals(steps('autoprovision').deploymentMode, 'AGW'))]",
+            "label": "Target applicaion gateways resource group name",
+            "defaultValue": "",
+            "toolTip": "The name of the Target Application Gateways Resource Group.",
+            "constraints": {
+              "required": true,
+              "regex": "^[a-z0-9A-Z_\\-\\.\\/\\(\\)]",
+              "validationMessage": "Resource Group only allow alphanumeric characters, periods, underscores, hyphens, slash, and parenthesis"
+            }
+          },
+          {
+            "name": "eAGWResourceId",
+            "type": "Microsoft.Common.TextBox",
+            "visible": "[and(equals(steps('autoprovision').upgrading, 'yes'), equals(steps('autoprovision').deploymentMode, 'AGW'))]",
+            "label": "Target external application gateway resource ID",
+            "defaultValue": "",
+            "toolTip": "The Resource ID of the Target External Application Gateway.",
+            "constraints": {
+              "required": true,
+              "regex": "^[a-z0-9A-Z_\\-\\.\\/\\(\\)]",
+              "validationMessage": "Resource Id only allow alphanumeric characters, periods, underscores, hyphens, slash, and parenthesis"
+            }
+          },
+          {
+            "name": "eAGWInfoBox",
+            "type": "Microsoft.Common.InfoBox",
+            "visible": "[and(equals(steps('autoprovision').upgrading, 'yes'), equals(steps('autoprovision').deploymentMode, 'AGW'))]",
+            "options": {
+              "icon": "Info",
+              "text": "Make sure you have created a new backend address pool for the target external applicaion gateway."
+            }
+          },
+          {
+            "name": "eAGWBEAddressPoolName",
+            "type": "Microsoft.Common.TextBox",
+            "visible": "[and(equals(steps('autoprovision').upgrading, 'yes'), equals(steps('autoprovision').deploymentMode, 'AGW'))]",
+            "label": "External applicaion gateway's new backend pool name",
+            "toolTip": "The name of the new Target External Application Gateway's Backend Pool.",
+            "constraints": {
+              "required": true,
+              "regex": "^[a-z0-9A-Z_\\-\\.\\/\\(\\)]",
+              "validationMessage": "Only alphanumeric characters, periods, underscores, hyphens, slash, and parenthesis are allowed"
+            }
+          },
+          {
+            "name": "iAGWResourceId",
+            "type": "Microsoft.Common.TextBox",
+            "visible": "[and(equals(steps('autoprovision').upgrading, 'yes'), not(equals(steps('autoprovision').AGWDeploymentMode, 'EApplicationGatewayOnly')), equals(steps('autoprovision').deploymentMode, 'AGW'))]",
+            "label": "Target internal applicaion gateway resource ID",
+            "defaultValue": "",
+            "toolTip": "The Resource ID of the Target Internal Application Gateway.",
+            "constraints": {
+              "required": true,
+              "regex": "^[a-z0-9A-Z_\\-\\.\\/\\(\\)]",
+              "validationMessage": "Resource Id only allow alphanumeric characters, periods, underscores, hyphens, slash, and parenthesis"
+            }
+          },
+          {
+            "name": "iAGWInfoBox",
+            "type": "Microsoft.Common.InfoBox",
+            "visible": "[and(equals(steps('autoprovision').upgrading, 'yes'), not(equals(steps('autoprovision').AGWDeploymentMode, 'EApplicationGatewayOnly')), equals(steps('autoprovision').deploymentMode, 'AGW'))]",
+            "options": {
+              "icon": "Info",
+              "text": "Make sure you have created a new backend address pool for the target internal applicaion gateway."
+            }
+          },
+          {
+            "name": "iAGWBEAddressPoolName",
+            "type": "Microsoft.Common.TextBox",
+            "visible": "[and(equals(steps('autoprovision').upgrading, 'yes'), not(equals(steps('autoprovision').AGWDeploymentMode, 'EApplicationGatewayOnly')), equals(steps('autoprovision').deploymentMode, 'AGW'))]",
+            "label": "Internal applicaion gateway's new backend pool name",
+            "toolTip": "The name of the new target internal applicaion gateway's backend pool.",
             "constraints": {
               "required": true,
               "regex": "^[a-z0-9A-Z_\\-\\.\\/\\(\\)]",
@@ -564,6 +676,15 @@
             }
           },
           {
+            "name": "remoteAccessRGNameInfoBox",
+            "type": "Microsoft.Common.InfoBox",
+            "visible": "[and(equals(steps('autoprovision').remoteAccessVpn, 'yes'), not(equals(steps('autoprovision').instanceLevelPublicIP, 'no')))]",
+            "options": {
+              "icon": "Warning",
+              "text": "The resource group name can contain only letters, numbers and '-', The '-' shouldn't be the first or the last symbol."
+            }
+          },
+          {
             "name": "dnsZoneResourceId",
             "type": "Microsoft.Common.TextBox",
             "label": "DNS Zone Resource ID",
@@ -669,6 +790,10 @@
                 {
                   "label": "R81.10",
                   "value": "R81.10"
+                },
+                {
+                  "label": "R81.20",
+                  "value": "R81.20"
                 }
               ]
             }
@@ -1691,6 +1816,279 @@
             "count": "[steps('autoprovision').vmCount]"
           },
           {
+            "name": "R8120vmSizeUiBYOL",
+            "type": "Microsoft.Compute.SizeSelector",
+            "visible": "[and(equals(steps('chkp').cloudGuardVersion, 'R81.20'), contains(steps('chkp').R80Offer, 'Bring Your Own License'))]",
+            "label": "Virtual machine size",
+            "toolTip": "The VM size of the Security Gateway",
+            "recommendedSizes": [
+              "Standard_D3_v2",
+              "Standard_DS3_v2"
+            ],
+            "constraints": {
+              "allowedSizes": [
+                "Standard_DS2_v2",
+                "Standard_DS3_v2",
+                "Standard_DS4_v2",
+                "Standard_DS5_v2",
+                "Standard_F2s",
+                "Standard_F4s",
+                "Standard_F8s",
+                "Standard_F16s",
+                "Standard_D4s_v3",
+                "Standard_D8s_v3",
+                "Standard_D16s_v3",
+                "Standard_D32s_v3",
+                "Standard_D64s_v3",
+                "Standard_E4s_v3",
+                "Standard_E8s_v3",
+                "Standard_E16s_v3",
+                "Standard_E20s_v3",
+                "Standard_E32s_v3",
+                "Standard_E64s_v3",
+                "Standard_E64is_v3",
+                "Standard_F4s_v2",
+                "Standard_F8s_v2",
+                "Standard_F16s_v2",
+                "Standard_F32s_v2",
+                "Standard_F64s_v2",
+                "Standard_M8ms",
+                "Standard_M16ms",
+                "Standard_M32ms",
+                "Standard_M64ms",
+                "Standard_M64s",
+                "Standard_D2_v2",
+                "Standard_D3_v2",
+                "Standard_D4_v2",
+                "Standard_D5_v2",
+                "Standard_D11_v2",
+                "Standard_D12_v2",
+                "Standard_D13_v2",
+                "Standard_D14_v2",
+                "Standard_D15_v2",
+                "Standard_F2",
+                "Standard_F4",
+                "Standard_F8",
+                "Standard_F16",
+                "Standard_D4_v3",
+                "Standard_D8_v3",
+                "Standard_D16_v3",
+                "Standard_D32_v3",
+                "Standard_D64_v3",
+                "Standard_E4_v3",
+                "Standard_E8_v3",
+                "Standard_E16_v3",
+                "Standard_E20_v3",
+                "Standard_E32_v3",
+                "Standard_E64_v3",
+                "Standard_E64i_v3",
+                "Standard_DS11_v2",
+                "Standard_DS12_v2",
+                "Standard_DS13_v2",
+                "Standard_DS14_v2",
+                "Standard_DS15_v2"
+              ]
+            },
+            "osPlatform": "Linux",
+            "imageReference": {
+              "publisher": "checkpoint",
+              "offer": "check-point-cg-r8120",
+              "sku": "sg-byol"
+            },
+            "count": "[steps('autoprovision').vmCount]"
+          },
+          {
+            "name": "R8120vmSizeUiNGTP",
+            "type": "Microsoft.Compute.SizeSelector",
+            "visible": "[and(equals(steps('chkp').cloudGuardVersion, 'R81.20'), contains(steps('chkp').R80Offer, '(NGTP)'))]",
+            "label": "Virtual machine size",
+            "toolTip": "The VM size of the Security Gateway",
+            "recommendedSizes": [
+              "Standard_D3_v2",
+              "Standard_DS3_v2"
+            ],
+            "constraints": {
+              "allowedSizes": [
+                "Standard_DS2_v2",
+                "Standard_DS3_v2",
+                "Standard_DS4_v2",
+                "Standard_DS5_v2",
+                "Standard_F2s",
+                "Standard_F4s",
+                "Standard_F8s",
+                "Standard_F16s",
+                "Standard_D4s_v3",
+                "Standard_D8s_v3",
+                "Standard_D16s_v3",
+                "Standard_D32s_v3",
+                "Standard_D64s_v3",
+                "Standard_E4s_v3",
+                "Standard_E8s_v3",
+                "Standard_E16s_v3",
+                "Standard_E20s_v3",
+                "Standard_E32s_v3",
+                "Standard_E64s_v3",
+                "Standard_E64is_v3",
+                "Standard_F4s_v2",
+                "Standard_F8s_v2",
+                "Standard_F16s_v2",
+                "Standard_F32s_v2",
+                "Standard_F64s_v2",
+                "Standard_M8ms",
+                "Standard_M16ms",
+                "Standard_M32ms",
+                "Standard_M64ms",
+                "Standard_M64s",
+                "Standard_D2_v2",
+                "Standard_D3_v2",
+                "Standard_D4_v2",
+                "Standard_D5_v2",
+                "Standard_D11_v2",
+                "Standard_D12_v2",
+                "Standard_D13_v2",
+                "Standard_D14_v2",
+                "Standard_D15_v2",
+                "Standard_F2",
+                "Standard_F4",
+                "Standard_F8",
+                "Standard_F16",
+                "Standard_D4_v3",
+                "Standard_D8_v3",
+                "Standard_D16_v3",
+                "Standard_D32_v3",
+                "Standard_D64_v3",
+                "Standard_E4_v3",
+                "Standard_E8_v3",
+                "Standard_E16_v3",
+                "Standard_E20_v3",
+                "Standard_E32_v3",
+                "Standard_E64_v3",
+                "Standard_E64i_v3",
+                "Standard_DS11_v2",
+                "Standard_DS12_v2",
+                "Standard_DS13_v2",
+                "Standard_DS14_v2",
+                "Standard_DS15_v2"
+              ]
+            },
+            "osPlatform": "Linux",
+            "imageReference": {
+              "publisher": "checkpoint",
+              "offer": "check-point-cg-r8120",
+              "sku": "sg-ngtp"
+            },
+            "count": "[steps('autoprovision').vmCount]"
+          },
+          {
+            "name": "R8120vmSizeUiNGTX",
+            "type": "Microsoft.Compute.SizeSelector",
+            "visible": "[and(equals(steps('chkp').cloudGuardVersion, 'R81.20'), contains(steps('chkp').R80Offer, '(NGTX)'))]",
+            "label": "Virtual machine size",
+            "toolTip": "The VM size of the Security Gateway",
+            "recommendedSizes": [
+              "Standard_D3_v2",
+              "Standard_DS3_v2"
+            ],
+            "constraints": {
+              "allowedSizes": [
+                "Standard_DS2_v2",
+                "Standard_DS3_v2",
+                "Standard_DS4_v2",
+                "Standard_DS5_v2",
+                "Standard_F2s",
+                "Standard_F4s",
+                "Standard_F8s",
+                "Standard_F16s",
+                "Standard_D4s_v3",
+                "Standard_D8s_v3",
+                "Standard_D16s_v3",
+                "Standard_D32s_v3",
+                "Standard_D64s_v3",
+                "Standard_E4s_v3",
+                "Standard_E8s_v3",
+                "Standard_E16s_v3",
+                "Standard_E20s_v3",
+                "Standard_E32s_v3",
+                "Standard_E64s_v3",
+                "Standard_E64is_v3",
+                "Standard_F4s_v2",
+                "Standard_F8s_v2",
+                "Standard_F16s_v2",
+                "Standard_F32s_v2",
+                "Standard_F64s_v2",
+                "Standard_M8ms",
+                "Standard_M16ms",
+                "Standard_M32ms",
+                "Standard_M64ms",
+                "Standard_M64s",
+                "Standard_D2_v2",
+                "Standard_D3_v2",
+                "Standard_D4_v2",
+                "Standard_D5_v2",
+                "Standard_D11_v2",
+                "Standard_D12_v2",
+                "Standard_D13_v2",
+                "Standard_D14_v2",
+                "Standard_D15_v2",
+                "Standard_F2",
+                "Standard_F4",
+                "Standard_F8",
+                "Standard_F16",
+                "Standard_D4_v3",
+                "Standard_D8_v3",
+                "Standard_D16_v3",
+                "Standard_D32_v3",
+                "Standard_D64_v3",
+                "Standard_E4_v3",
+                "Standard_E8_v3",
+                "Standard_E16_v3",
+                "Standard_E20_v3",
+                "Standard_E32_v3",
+                "Standard_E64_v3",
+                "Standard_E64i_v3",
+                "Standard_DS11_v2",
+                "Standard_DS12_v2",
+                "Standard_DS13_v2",
+                "Standard_DS14_v2",
+                "Standard_DS15_v2"
+              ]
+            },
+            "osPlatform": "Linux",
+            "imageReference": {
+              "publisher": "checkpoint",
+              "offer": "check-point-cg-r8120",
+              "sku": "sg-ngtx"
+            },
+            "count": "[steps('autoprovision').vmCount]"
+          },
+          {
+            "name": "adminShell",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Default shell for the admin user",
+            "defaultValue": "/etc/cli.sh",
+            "toolTip": "The default shell for the admin user",
+            "constraints": {
+              "allowedValues": [
+                {
+                  "label": "/etc/cli.sh",
+                  "value": "/etc/cli.sh"
+                },
+                {
+                  "label": "/bin/bash",
+                  "value": "/bin/bash"
+                },
+                {
+                  "label": "/bin/csh",
+                  "value": "/bin/csh"
+                },
+                {
+                  "label": "/bin/tcsh",
+                  "value": "/bin/tcsh"
+                }
+              ]
+            }
+          },
+          {
             "name": "sicKeyUi",
             "type": "Microsoft.Common.PasswordBox",
             "label": {
@@ -1726,7 +2124,7 @@
           {
             "name": "allowUploadDownload",
             "type": "Microsoft.Common.OptionsGroup",
-            "label": "Allow download from/upload to Check Point",
+            "label": "Automatically download updates and share statistical data for product improvement purpose",
             "defaultValue": "Yes",
             "toolTip": "Automatically download Blade Contracts and other important data. Improve product experience by sending data to Check Point",
             "constraints": {
@@ -1807,7 +2205,7 @@
         "bladeTitle": "Network settings",
         "elements": [
           {
-            "name": "virtualNetwork",
+            "name": "virtualNetworkLBDeployment",
             "type": "Microsoft.Network.VirtualNetworkCombo",
             "label": {
               "virtualNetwork": "Virtual network",
@@ -1852,7 +2250,142 @@
                   "requireContiguousAddresses": false
                 }
               }
+            },
+            "visible": "[equals(steps('autoprovision').deploymentMode, 'LB')]"
+          },
+          {
+            "name": "virtualNetworkAGWDeployment",
+            "type": "Microsoft.Network.VirtualNetworkCombo",
+            "label": {
+              "virtualNetwork": "Virtual network",
+              "subnets": "Subnets"
+            },
+            "toolTip": {
+              "virtualNetwork": "Virtual Network Name",
+              "subnets": "The subnets to deploy into"
+            },
+            "defaultValue": {
+              "name": "vnet01",
+              "addressPrefixSize": "/16"
+            },
+            "constraints": {
+              "minAddressPrefixSize": "/28"
+            },
+            "options": {
+              "hideExisting": false
+            },
+            "subnets": {
+              "subnet1": {
+                "label": "VMSS Frontend subnet",
+                "defaultValue": {
+                  "name": "VMSS-Frontend",
+                  "addressPrefixSize": "/24"
+                },
+                "constraints": {
+                  "minAddressPrefixSize": "/29",
+                  "minAddressCount": "[steps('autoprovision').maxVmCount]",
+                  "requireContiguousAddresses": false
+                }
+              },
+              "subnet2": {
+                "label": "VMSS Backend subnet",
+                "defaultValue": {
+                  "name": "VMSS-Backend",
+                  "addressPrefixSize": "/24"
+                },
+                "constraints": {
+                  "minAddressPrefixSize": "/29",
+                  "minAddressCount": "[steps('autoprovision').maxVmCount]",
+                  "requireContiguousAddresses": false
+                }
+              },
+              "EAGWSubnet": {
+                "label": "VMSS external applicaion gateway subnet",
+                "defaultValue": {
+                  "name": "VMSS-external-applicaion-gateway",
+                  "addressPrefixSize": "/24"
+                },
+                "constraints": {
+                  "minAddressPrefixSize": "/29",
+                  "minAddressCount": "[steps('autoprovision').maxVmCount]",
+                  "requireContiguousAddresses": false
+                }
+              },
+              "IAGWSubnet": {
+                "label": "VMSS internal applicaion gateway subnet",
+                "defaultValue": {
+                  "name": "VMSS-internal-applicaion-gateway",
+                  "addressPrefixSize": "/24"
+                },
+                "constraints": {
+                  "minAddressPrefixSize": "/29",
+                  "minAddressCount": "[steps('autoprovision').maxVmCount]",
+                  "requireContiguousAddresses": false
+                }
             }
+            },
+            "visible": "[and(equals(steps('autoprovision').deploymentMode, 'AGW'), equals(steps('autoprovision').AGWDeploymentMode, 'StandardApplicationGateway'))]"
+          },
+          {
+            "name": "virtualNetworkEAGWDeployment",
+            "type": "Microsoft.Network.VirtualNetworkCombo",
+            "label": {
+              "virtualNetwork": "Virtual network",
+              "subnets": "Subnets"
+            },
+            "toolTip": {
+              "virtualNetwork": "Virtual Network Name",
+              "subnets": "The subnets to deploy into"
+            },
+            "defaultValue": {
+              "name": "vnet01",
+              "addressPrefixSize": "/16"
+            },
+            "constraints": {
+              "minAddressPrefixSize": "/28"
+            },
+            "options": {
+              "hideExisting": false
+            },
+            "subnets": {
+              "subnet1": {
+                "label": "VMSS Frontend subnet",
+                "defaultValue": {
+                  "name": "VMSS-Frontend",
+                  "addressPrefixSize": "/24"
+                },
+                "constraints": {
+                  "minAddressPrefixSize": "/29",
+                  "minAddressCount": "[steps('autoprovision').maxVmCount]",
+                  "requireContiguousAddresses": false
+                }
+              },
+              "subnet2": {
+                "label": "VMSS Backend subnet",
+                "defaultValue": {
+                  "name": "VMSS-Backend",
+                  "addressPrefixSize": "/24"
+                },
+                "constraints": {
+                  "minAddressPrefixSize": "/29",
+                  "minAddressCount": "[steps('autoprovision').maxVmCount]",
+                  "requireContiguousAddresses": false
+                }
+              },
+              "EAGWSubnet": {
+                "label": "VMSS external applicaion gateway subnet",
+                "defaultValue": {
+                  "name": "VMSS-external-applicaion-gateway",
+                  "addressPrefixSize": "/24"
+                },
+                "constraints": {
+                  "minAddressPrefixSize": "/29",
+                  "minAddressCount": "[steps('autoprovision').maxVmCount]",
+                  "requireContiguousAddresses": false
+                }
+              }
+            },
+            "visible": "[and(equals(steps('autoprovision').deploymentMode, 'AGW'), equals(steps('autoprovision').AGWDeploymentMode, 'EApplicationGatewayOnly'))]"
           }
         ]
       }
@@ -1876,6 +2409,11 @@
       "elbTargetBEAddressPoolName": "[steps('autoprovision').elbBEAddressPoolName]",
       "ilbResourceId": "[steps('autoprovision').ilbResourceId]",
       "ilbTargetBEAddressPoolName": "[steps('autoprovision').ilbBEAddressPoolName]",
+      "AGWsTargetRGName": "[steps('autoprovision').AGWsTargetRGName]",
+      "eAGWResourceId": "[steps('autoprovision').eAGWResourceId]",
+      "eAGWBEAddressPoolName": "[steps('autoprovision').eAGWBEAddressPoolName]",
+      "iAGWResourceId": "[steps('autoprovision').iAGWResourceId]",
+      "iAGWBEAddressPoolName": "[steps('autoprovision').iAGWBEAddressPoolName]",
       "mgmtInterfaceOpt1": "[steps('autoprovision').mgmtInterfaceOpt1]",
       "mgmtInterfaceOpt2": "[steps('autoprovision').mgmtInterfaceOpt2]",
       "mgmtIPaddress": "[steps('autoprovision').mgmtIPaddress]",
@@ -1887,26 +2425,31 @@
       "dnsZoneRecordSetName": "[steps('autoprovision').dnsZoneRecordSetName]",
       "customMetrics": "[steps('autoprovision').customMetrics]",
       "cloudGuardVersion": "[concat(steps('chkp').cloudGuardVersion, ' - ', coalesce(steps('chkp').R80Offer, 'Bring Your Own License'))]",
-      "vmSize": "[coalesce(steps('chkp').R8030vmSizeUiBYOL, steps('chkp').R8030vmSizeUiNGTP, steps('chkp').R8030vmSizeUiNGTX, steps('chkp').R8040vmSizeUiBYOL, steps('chkp').R8040vmSizeUiNGTP, steps('chkp').R8040vmSizeUiNGTX, steps('chkp').R81vmSizeUiBYOL, steps('chkp').R81vmSizeUiNGTP, steps('chkp').R81vmSizeUiNGTX, steps('chkp').R8110vmSizeUiBYOL, steps('chkp').R8110vmSizeUiNGTP, steps('chkp').R8110vmSizeUiNGTX )]",
+      "vmSize": "[coalesce(steps('chkp').R8030vmSizeUiBYOL, steps('chkp').R8030vmSizeUiNGTP, steps('chkp').R8030vmSizeUiNGTX, steps('chkp').R8040vmSizeUiBYOL, steps('chkp').R8040vmSizeUiNGTP, steps('chkp').R8040vmSizeUiNGTX, steps('chkp').R81vmSizeUiBYOL, steps('chkp').R81vmSizeUiNGTP, steps('chkp').R81vmSizeUiNGTX, steps('chkp').R8110vmSizeUiBYOL, steps('chkp').R8110vmSizeUiNGTP, steps('chkp').R8110vmSizeUiNGTX , steps('chkp').R8120vmSizeUiBYOL, steps('chkp').R8120vmSizeUiNGTP, steps('chkp').R8120vmSizeUiNGTX)]",
       "sicKey": "[steps('chkp').sicKeyUi]",
       "bootstrapScript": "[steps('chkp').bootstrapScript]",
       "allowDownloadFromUploadToCheckPoint": "[coalesce(steps('chkp').allowUploadDownload, 'true')]",
       "diskType": "[coalesce(steps('chkp').VMDiskType, 'Standard_LRS')]",
       "sourceImageVhdUri": "[coalesce(steps('chkp').sourceImageVhdUri, 'noCustomUri')]",
-      "virtualNetworkName": "[steps('network').virtualNetwork.name]",
-      "virtualNetworkAddressPrefixes": "[steps('network').virtualNetwork.addressPrefixes]",
-      "vnetNewOrExisting": "[steps('network').virtualNetwork.newOrExisting]",
-      "virtualNetworkExistingRGName": "[steps('network').virtualNetwork.resourceGroup]",
-      "subnet1Name": "[steps('network').virtualNetwork.subnets.subnet1.name]",
-      "subnet1Prefix": "[steps('network').virtualNetwork.subnets.subnet1.addressPrefix]",
-      "subnet2Name": "[steps('network').virtualNetwork.subnets.subnet2.name]",
-      "subnet2Prefix": "[steps('network').virtualNetwork.subnets.subnet2.addressPrefix]",
-      "subnet2StartAddress": "[steps('network').virtualNetwork.subnets.subnet2.startAddress]",
+      "virtualNetworkName": "[if(equals(steps('autoprovision').deploymentMode, 'LB'), steps('network').virtualNetworkLBDeployment.name, if(equals(steps('autoprovision').AGWDeploymentMode, 'StandardApplicationGateway'), steps('network').virtualNetworkAGWDeployment.name, steps('network').virtualNetworkEAGWDeployment.name))]",
+      "virtualNetworkAddressPrefixes": "[if(equals(steps('autoprovision').deploymentMode, 'LB'), steps('network').virtualNetworkLBDeployment.addressPrefixes, if(equals(steps('autoprovision').AGWDeploymentMode, 'StandardApplicationGateway'), steps('network').virtualNetworkAGWDeployment.addressPrefixes, steps('network').virtualNetworkEAGWDeployment.addressPrefixes))]",
+      "vnetNewOrExisting": "[if(equals(steps('autoprovision').deploymentMode, 'LB'), steps('network').virtualNetworkLBDeployment.newOrExisting, if(equals(steps('autoprovision').AGWDeploymentMode, 'StandardApplicationGateway'), steps('network').virtualNetworkAGWDeployment.newOrExisting, steps('network').virtualNetworkEAGWDeployment.newOrExisting))]",
+      "virtualNetworkExistingRGName": "[if(equals(steps('autoprovision').deploymentMode, 'LB'), steps('network').virtualNetworkLBDeployment.resourceGroup, if(equals(steps('autoprovision').AGWDeploymentMode, 'StandardApplicationGateway'), steps('network').virtualNetworkAGWDeployment.resourceGroup, steps('network').virtualNetworkEAGWDeployment.resourceGroup))]",
+      "subnet1Name": "[if(equals(steps('autoprovision').deploymentMode, 'LB'), steps('network').virtualNetworkLBDeployment.subnets.subnet1.name, if(equals(steps('autoprovision').AGWDeploymentMode, 'StandardApplicationGateway'), steps('network').virtualNetworkAGWDeployment.subnets.subnet1.name, steps('network').virtualNetworkEAGWDeployment.subnets.subnet1.name))]",
+      "subnet1Prefix": "[if(equals(steps('autoprovision').deploymentMode, 'LB'), steps('network').virtualNetworkLBDeployment.subnets.subnet1.addressPrefix, if(equals(steps('autoprovision').AGWDeploymentMode, 'StandardApplicationGateway'), steps('network').virtualNetworkAGWDeployment.subnets.subnet1.addressPrefix, steps('network').virtualNetworkEAGWDeployment.subnets.subnet1.addressPrefix))]",
+      "subnet2Name": "[if(equals(steps('autoprovision').deploymentMode, 'LB'), steps('network').virtualNetworkLBDeployment.subnets.subnet2.name, if(equals(steps('autoprovision').AGWDeploymentMode, 'StandardApplicationGateway'), steps('network').virtualNetworkAGWDeployment.subnets.subnet2.name, steps('network').virtualNetworkEAGWDeployment.subnets.subnet2.name))]",
+      "subnet2Prefix": "[if(equals(steps('autoprovision').deploymentMode, 'LB'), steps('network').virtualNetworkLBDeployment.subnets.subnet2.addressPrefix, if(equals(steps('autoprovision').AGWDeploymentMode, 'StandardApplicationGateway'), steps('network').virtualNetworkAGWDeployment.subnets.subnet2.addressPrefix, steps('network').virtualNetworkEAGWDeployment.subnets.subnet2.addressPrefix))]",
+      "subnet2StartAddress": "[if(equals(steps('autoprovision').deploymentMode, 'LB'), steps('network').virtualNetworkLBDeployment.subnets.subnet2.startAddress, if(equals(steps('autoprovision').AGWDeploymentMode, 'StandardApplicationGateway'), steps('network').virtualNetworkAGWDeployment.subnets.subnet2.startAddress, steps('network').virtualNetworkEAGWDeployment.subnets.subnet2.startAddress))]",
+      "EAGWSubnetName": "[if(equals(steps('autoprovision').AGWDeploymentMode, 'StandardApplicationGateway'), steps('network').virtualNetworkAGWDeployment.subnets.EAGWSubnet.name, if(equals(steps('autoprovision').AGWDeploymentMode, 'EApplicationGatewayOnly'), steps('network').virtualNetworkEAGWDeployment.subnets.EAGWSubnet.name, 'None'))]",
+      "EAGWSubnetPrefix": "[if(equals(steps('autoprovision').AGWDeploymentMode, 'StandardApplicationGateway'), steps('network').virtualNetworkAGWDeployment.subnets.EAGWSubnet.addressPrefix, if(equals(steps('autoprovision').AGWDeploymentMode, 'EApplicationGatewayOnly'), steps('network').virtualNetworkEAGWDeployment.subnets.EAGWSubnet.addressPrefix, 'None'))]",
+      "IAGWSubnetName": "[if(equals(steps('autoprovision').AGWDeploymentMode, 'StandardApplicationGateway'), steps('network').virtualNetworkAGWDeployment.subnets.IAGWSubnet.name, 'None')]",
+      "IAGWSubnetPrefix": "[if(equals(steps('autoprovision').AGWDeploymentMode, 'StandardApplicationGateway'), steps('network').virtualNetworkAGWDeployment.subnets.IAGWSubnet.addressPrefix, 'None')]",
       "floatingIP": "[steps('autoprovision').floatingIP]",
       "IPv4Length": "[steps('autoprovision').IPv4Length]",
       "publicIPPrefix": "[steps('autoprovision').publicIPPrefix]",
       "createNewIPPrefix": "[steps('autoprovision').createNewIPPrefix]",
-      "ipPrefixExistingResourceId": "[steps('autoprovision').ipPrefixExistingResourceId]"
+      "ipPrefixExistingResourceId": "[steps('autoprovision').ipPrefixExistingResourceId]",
+      "adminShell": "[steps('chkp').adminShell]"
     }
   }
 }

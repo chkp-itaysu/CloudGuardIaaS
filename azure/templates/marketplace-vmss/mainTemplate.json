@@ -30,7 +30,10 @@
         "R81 - Pay As You Go (NGTX)",
         "R81.10 - Bring Your Own License",
         "R81.10 - Pay As You Go (NGTP)",
-        "R81.10 - Pay As You Go (NGTX)"
+        "R81.10 - Pay As You Go (NGTX)",
+        "R81.20 - Bring Your Own License",
+        "R81.20 - Pay As You Go (NGTP)",
+        "R81.20 - Pay As You Go (NGTX)"
       ],
       "defaultValue": "R81 - Bring Your Own License",
       "metadata": {
@@ -106,6 +109,19 @@
       "defaultValue": "Standard_D3_v2",
       "metadata": {
         "description": "Size of the VM"
+      }
+    },
+    "adminShell": {
+      "type": "string",
+      "defaultValue": "/etc/cli.sh",
+      "allowedValues": [
+        "/etc/cli.sh",
+        "/bin/bash",
+        "/bin/csh",
+        "/bin/tcsh"
+      ],
+      "metadata": {
+        "Description": "The default shell for the admin user"
       }
     },
     "sicKey": {
@@ -231,6 +247,41 @@
       },
       "defaultValue": ""
     },
+    "AGWsTargetRGName": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the Target Application Gateways Resource Group."
+      },
+      "defaultValue": ""
+    },
+    "eAGWResourceId": {
+      "type": "string",
+      "metadata": {
+        "description": "The Resource ID of the Target External Application Gateway."
+      },
+      "defaultValue": ""
+    },
+    "eAGWBEAddressPoolName": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the new Target External Application Gateway's Backend Pool."
+      },
+      "defaultValue": ""
+    },
+    "iAGWResourceId": {
+      "type": "string",
+      "metadata": {
+        "description": "The Resource ID of the Target Internal Application Gateway."
+      },
+      "defaultValue": ""
+    },
+    "iAGWBEAddressPoolName": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the new Target Internal Application Gateway's Backend Pool."
+      },
+      "defaultValue": ""
+    },
     "virtualNetworkAddressPrefixes": {
       "type": "array",
       "metadata": {
@@ -274,6 +325,34 @@
         "description": "The first available address on the 2nd subnet"
       },
       "defaultValue": "10.0.2.4"
+    },
+    "EAGWSubnetName": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the external application gateway subnet"
+      },
+      "defaultValue": "external-application-gateway-subnet"
+    },
+    "EAGWSubnetPrefix": {
+      "type": "string",
+      "metadata": {
+        "description": "The address prefix of the external application gateway subnet"
+      },
+      "defaultValue": "10.0.3.0/24"
+    },
+    "IAGWSubnetName": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the internal application gateway subnet"
+      },
+      "defaultValue": "internal-application-gateway-subnet"
+    },
+    "IAGWSubnetPrefix": {
+      "type": "string",
+      "metadata": {
+        "description": "The address prefix of the internal application gateway subnet"
+      },
+      "defaultValue": "10.0.4.0/24"
     },
     "vnetNewOrExisting": {
       "type": "string",
@@ -379,13 +458,35 @@
     "deploymentMode": {
       "type": "string",
       "allowedValues": [
+        "LB",
+        "AGW"
+      ],
+      "defaultValue": "LB",
+      "metadata": {
+        "description": "Solution deployment architecture."
+      }
+    },
+    "lBDeploymentMode": {
+      "type": "string",
+      "allowedValues": [
         "Standard",
         "ILBOnly",
         "ELBOnly"
       ],
       "defaultValue": "Standard",
       "metadata": {
-        "description": "Solution deployment architecture."
+        "description": "Load balancer solution deployment architecture."
+      }
+    },
+    "aGWDeploymentMode": {
+      "type": "string",
+      "allowedValues": [
+        "StandardApplicationGateway",
+        "EApplicationGatewayOnly"
+      ],
+      "defaultValue": "StandardApplicationGateway",
+      "metadata": {
+        "description": "Application gateway solution deployment architecture."
       }
     },
     "sourceImageVhdUri": {
@@ -466,8 +567,8 @@
   "variables": {
     "resourceGroup": "[resourceGroup()]",
     "resourceGroupName": "[resourceGroup().name]",
-    "templateName": "vmss-v2",
-    "templateVersion": "20211201",
+    "templateName": "[if(equals(parameters('deploymentMode'), 'LB'), 'vmss-v2', 'vmss-v2-agw')]",
+    "templateVersion": "20211230",
     "location": "[parameters('location')]",
     "offers": {
       "R80.30 - Bring Your Own License": "BYOL",
@@ -481,7 +582,10 @@
       "R81 - Pay As You Go (NGTX)": "NGTX",
       "R81.10 - Bring Your Own License": "BYOL",
       "R81.10 - Pay As You Go (NGTP)": "NGTP",
-      "R81.10 - Pay As You Go (NGTX)": "NGTX"
+      "R81.10 - Pay As You Go (NGTX)": "NGTX",
+      "R81.20 - Bring Your Own License": "BYOL",
+      "R81.20 - Pay As You Go (NGTP)": "NGTP",
+      "R81.20 - Pay As You Go (NGTX)": "NGTX"
     },
     "offer": "[variables('offers')[parameters('cloudGuardVersion')]]",
     "osVersions": {
@@ -496,7 +600,10 @@
       "R81 - Pay As You Go (NGTX)": "R81",
       "R81.10 - Bring Your Own License": "R8110",
       "R81.10 - Pay As You Go (NGTP)": "R8110",
-      "R81.10 - Pay As You Go (NGTX)": "R8110"
+      "R81.10 - Pay As You Go (NGTX)": "R8110",
+      "R81.20 - Bring Your Own License": "R8120",
+      "R81.20 - Pay As You Go (NGTP)": "R8120",
+      "R81.20 - Pay As You Go (NGTX)": "R8120"
     },
     "osVersion": "[variables('osVersions')[parameters('cloudGuardVersion')]]",
     "adminUsername": "notused",
@@ -505,7 +612,7 @@
     "storageAccountName": "[concat('bootdiag', uniqueString(variables('resourceGroup').id, deployment().name))]",
     "storageAccountType": "Standard_LRS",
     "enableFloatingIP": "[equals(parameters('floatingIP'), 'yes')]",
-    "customData": "[concat('#!/usr/bin/python3 /etc/cloud_config.py\n', '\n', 'installationType=\"', variables('installationType'), '\"', '\n', 'allowUploadDownload=\"', variables('allowUploadDownload'), '\"', '\n', 'osVersion=\"', variables('osVersion'), '\"', '\n', 'templateName=\"', variables('templateName'), '\"', '\n', 'isBlink=\"', variables('isBlink'), '\"', '\n', 'templateVersion=\"', variables('templateVersion'), '\"', '\n', 'bootstrapScript64=\"', variables('bootstrapScript64'), '\"', '\n', 'location=\"', variables('location'), '\"', '\n', 'sicKey=\"', variables('sicKey'), '\"', '\n', 'customMetrics=\"', variables('customMetrics'), '\"', '\n')]",
+    "customData": "[concat('#!/usr/bin/python3 /etc/cloud_config.py\n', '\n', 'installationType=\"', variables('installationType'), '\"', '\n', 'allowUploadDownload=\"', variables('allowUploadDownload'), '\"', '\n', 'osVersion=\"', variables('osVersion'), '\"', '\n', 'templateName=\"', variables('templateName'), '\"', '\n', 'isBlink=\"', variables('isBlink'), '\"', '\n', 'templateVersion=\"', variables('templateVersion'), '\"', '\n', 'bootstrapScript64=\"', variables('bootstrapScript64'), '\"', '\n', 'location=\"', variables('location'), '\"', '\n', 'sicKey=\"', variables('sicKey'), '\"', '\n', 'customMetrics=\"', variables('customMetrics'), '\"', '\n', 'EAGWSubnetPrefix=\"', variables('EAGWSubnetPrefix'), '\"', '\n', 'adminShell=\"', parameters('adminShell'), '\"', '\n')]",
     "imageOffer": "[concat('check-point-cg-', toLower(variables('osVersion')))]",
     "imagePublisher": "checkpoint",
     "imageReferenceBYOL": {
@@ -593,10 +700,12 @@
     "upgrading": "[equals(parameters('upgrading'), 'yes')]",
     "networkSetupURL": "[uri(parameters('_artifactsLocation'), concat('nestedtemplates/vnet-2-subnet-ha-', parameters('vnetNewOrExisting'), '.json', parameters('_artifactsLocationSasToken')))]",
     "loadBalacerSetupURL": "[uri(parameters('_artifactsLocation'), concat('nestedtemplates/load-balancers.json', parameters('_artifactsLocationSasToken')))]",
+    "applicationGatewayURL": "[uri(parameters('_artifactsLocation'), concat('nestedtemplates/application-gateway.json', parameters('_artifactsLocationSasToken')))]",
     "azureFunctionSetupURL": "[uri(parameters('_artifactsLocation'), concat('nestedtemplates/azure-func-sami.json', parameters('_artifactsLocationSasToken')))]",
-    "lbsTargetRGName": "[parameters('lbsTargetRGName')]",
-    "lbRGName": "[if(variables('upgrading'), variables('lbsTargetRGName'), resourceGroup().name)]",
-    "loadBalancerSetupId": "[resourceId(variables('lbRGName'), 'Microsoft.Resources/deployments', 'loadBalancerSetup')]",
+    "targetRGName": "[if(variables('upgrading'), if(equals(parameters('deploymentMode'), 'LB'), parameters('lbsTargetRGName'), parameters('AGWsTargetRGName')), resourceGroup().name)]",
+    "loadBalancerSetupId": "[resourceId(variables('targetRGName'), 'Microsoft.Resources/deployments', 'loadBalancerSetup')]",
+    "applicationGatewaySetupName": "[if(equals(parameters('aGWDeploymentMode'), 'EApplicationGatewayOnly'), 'applicationGatewaySetup-external', 'applicationGatewaySetup')]",
+    "applicationGatewaySetupId": "[resourceId(variables('targetRGName'), 'Microsoft.Resources/deployments', variables('applicationGatewaySetupName'))]",
     "deployNewVnet": "[equals(parameters('vnetNewOrExisting'), 'new')]",
     "vnetRGName": "[if(variables('deployNewVnet'), variables('resourceGroupName'), parameters('virtualNetworkExistingRGName'))]",
     "vnetID": "[if(variables('deployNewVnet'), resourceId(variables('vnetRGName'), 'Microsoft.Resources/deployments', 'networkNewSetup'), resourceId(variables('vnetRGName'), 'Microsoft.Resources/deployments', 'networkExistingSetup'))]",
@@ -677,11 +786,16 @@
       }
     },
     "publicIPPrefixLength": "[variables('IPv4Lengths')[parameters('IPv4Length')]]",
-    "useIpPrefix": "[if(equals(parameters('publicIPPrefix'), 'yes'), variables('publicIPPropertiesWithPrefix'), variables('publicIPPropertiesWithoutPrefix'))]"
+    "useIpPrefix": "[if(equals(parameters('publicIPPrefix'), 'yes'), variables('publicIPPropertiesWithPrefix'), variables('publicIPPropertiesWithoutPrefix'))]",
+    "EAGWSubnetName": "[parameters('EAGWSubnetName')]",
+    "EAGWSubnetPrefix": "[parameters('EAGWSubnetPrefix')]",
+    "IAGWSubnetName": "[parameters('IAGWSubnetName')]",
+    "IAGWSubnetPrefix": "[parameters('IAGWSubnetPrefix')]",
+    "setupID": "[if(equals(parameters('deploymentMode'), 'LB'), variables('loadBalancerSetupId'), variables('applicationGatewaySetupId'))]"
   },
   "resources": [
     {
-      "condition": "[and(equals(parameters('createNewIPPrefix'), 'yes'), equals(parameters('publicIPPrefix'), 'yes'))]",
+      "condition": "[and(equals(parameters('deploymentMode'), 'LB'), equals(parameters('createNewIPPrefix'), 'yes'), equals(parameters('publicIPPrefix'), 'yes'))]",
       "apiVersion": "2020-06-01",
       "type": "Microsoft.Network/publicipprefixes",
       "name": "[variables('ipPrefixNewName')]",
@@ -756,11 +870,29 @@
           "subnet2Prefix": {
             "value": "[parameters('subnet2Prefix')]"
           },
+          "EAGWSubnetName": {
+            "value": "[variables('EAGWSubnetName')]"
+          },
+          "EAGWSubnetPrefix": {
+            "value": "[variables('EAGWSubnetPrefix')]"
+          },
+          "IAGWSubnetName": {
+            "value": "[variables('IAGWSubnetName')]"
+          },
+          "IAGWSubnetPrefix": {
+            "value": "[variables('IAGWSubnetPrefix')]"
+          },
           "vmName": {
             "value": "[parameters('vmName')]"
           },
           "deployNsg": {
             "value": true
+          },
+          "deployAGW": {
+            "value": "[equals(parameters('deploymentMode'), 'AGW')]"
+          },
+          "AGWDeploymentMode": {
+            "value": "[parameters('aGWDeploymentMode')]"
           }
         }
       }
@@ -831,9 +963,10 @@
       }
     },
     {
+      "condition": "[equals(parameters('deploymentMode'), 'LB')]",
       "name": "loadBalancerSetup",
       "type": "Microsoft.Resources/deployments",
-      "resourceGroup": "[variables('lbRGName')]",
+      "resourceGroup": "[variables('targetRGName')]",
       "apiVersion": "2020-06-01",
       "dependsOn": [
         "[variables('vnetID')]"
@@ -846,7 +979,7 @@
         },
         "parameters": {
           "deploymentMode": {
-            "value": "[parameters('deploymentMode')]"
+            "value": "[parameters('lBDeploymentMode')]"
           },
           "location": {
             "value": "[variables('location')]"
@@ -883,6 +1016,79 @@
           },
           "floatingIp": {
             "value": "[variables('enableFloatingIP')]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[equals(parameters('deploymentMode'), 'AGW')]",
+      "name": "[variables('applicationGatewaySetupName')]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[variables('targetRGName')]",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+        "[variables('vnetID')]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('applicationGatewayURL')]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "upgrading": {
+            "value": "[variables('upgrading')]"
+          },
+          "virtualNetworkRGName": {
+            "value": "[variables('vnetRGName')]"
+          },
+          "virtualNetworkName": {
+            "value": "[parameters('virtualNetworkName')]"
+          },
+          "EAGWSubnetName": {
+            "value": "[variables('EAGWSubnetName')]"
+          },
+          "IAGWSubnetName": {
+            "value": "[variables('IAGWSubnetName')]"
+          },
+          "applicationGatewayName": {
+            "value": "[concat(parameters('vmName'), '-applicationGateway')]"
+          },
+          "applicationGatewaySize": {
+            "value": "Standard_Small"
+          },
+          "applicationGatewayInstanceCount": {
+            "value": 2
+          },
+          "frontendPort": {
+            "value": 80
+          },
+          "backendPort": {
+            "value": 80
+          },
+          "cookieBasedAffinity": {
+            "value": "Disabled"
+          },
+          "location": {
+            "value": "[variables('location')]"
+          },
+          "publicIPAddressName": {
+            "value": "[concat(parameters('vmName'), '-gateway-public-ip')]"
+          },
+          "deploymentMode": {
+            "value": "[parameters('aGWDeploymentMode')]"
+          },
+          "targetEAGWResourceId": {
+            "value": "[parameters('eAGWResourceId')]"
+          },
+          "targetEAGWBackendPoolName": {
+            "value": "[parameters('eAGWBEAddressPoolName')]"
+          },
+          "targetIAGWResourceId": {
+            "value": "[parameters('iAGWResourceId')]"
+          },
+          "targetIAGWBackendPoolName": {
+            "value": "[parameters('iAGWBEAddressPoolName')]"
           }
         }
       }
@@ -930,7 +1136,7 @@
       "tags": "[variables('vmssTags')]",
       "dependsOn": [
         "[variables('vnetID')]",
-        "[variables('loadBalancerSetupId')]",
+        "[variables('setupID')]",
         "[variables('storageAccountId')]",
         "[variables('customImageId')]"
       ],
@@ -945,6 +1151,7 @@
           "mode": "Manual"
         },
         "virtualMachineProfile": {
+          "UserData": "[base64(concat(variables('customData'), '\n', 'vnet=\"', if(equals(parameters('vnetNewOrExisting'), 'new'), reference('networkNewSetup').outputs.vnetAddressPrefixes.value[0], reference('networkExistingSetup').outputs.vnetAddressPrefixes.value[0]), '\"', '\n' ))]",
           "storageProfile": {
             "osDisk": {
               "caching": "ReadWrite",
@@ -979,7 +1186,8 @@
                         "subnet": {
                           "id": "[resourceId(variables('vnetRGName'), 'Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworkName'), parameters('Subnet1Name'))]"
                         },
-                        "loadBalancerBackendAddressPools": "[if(empty(reference('loadBalancerSetup').outputs.elbId.value), json('null'), reference('loadBalancerSetup').outputs.elbBEAddressPoolProperties.value)]"
+                        "loadBalancerBackendAddressPools": "[if(equals(parameters('deploymentMode'), 'LB'), if(empty(reference('loadBalancerSetup').outputs.elbId.value), json('null'), reference('loadBalancerSetup').outputs.elbBEAddressPoolProperties.value), json('null'))]",
+                        "ApplicationGatewayBackendAddressPools": "[if(equals(parameters('deploymentMode'), 'AGW'), if(empty(reference(variables('applicationGatewaySetupName')).outputs.eAGWId.value), json('null'), reference(variables('applicationGatewaySetupName')).outputs.eAGWBEAddressPoolProperties.value), json('null'))]"
                       }
                     }
                   ]
@@ -998,7 +1206,7 @@
                         "subnet": {
                           "id": "[resourceId(variables('vnetRGName'), 'Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworkName'), parameters('Subnet2Name'))]"
                         },
-                        "loadBalancerBackendAddressPools": "[if(empty(reference('loadBalancerSetup').outputs.ilbId.value), json('null'), reference('loadBalancerSetup').outputs.ilbBEAddressPoolProperties.value)]"
+                        "loadBalancerBackendAddressPools": "[if(equals(parameters('deploymentMode'), 'LB'), if(empty(reference('loadBalancerSetup').outputs.ilbId.value), json('null'), reference('loadBalancerSetup').outputs.ilbBEAddressPoolProperties.value), json('null'))]"
                       }
                     }
                   ]
@@ -1092,11 +1300,11 @@
   "outputs": {
     "ApplicationAddress": {
       "type": "string",
-      "value": "[reference('loadBalancerSetup').outputs.ApplicationAddress.value]"
+      "value": "[if(equals(parameters('deploymentMode'), 'LB'),  reference('loadBalancerSetup').outputs.ApplicationAddress.value, 'None')]"
     },
     "ApplicationFQDN": {
       "type": "string",
-      "value": "[reference('loadBalancerSetup').outputs.ApplicationFQDN.value]"
+      "value": "[if(equals(parameters('deploymentMode'), 'LB'), reference('loadBalancerSetup').outputs.ApplicationFQDN.value, 'None')]"
     }
   }
 }
